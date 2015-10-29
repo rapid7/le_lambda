@@ -1,4 +1,4 @@
-# le_lambda
+# le_lambda.py
 Follow the instructions below to send logs stored on AWS S3 to Logentries.
 
 ###### Example use cases:
