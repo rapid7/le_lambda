@@ -2,7 +2,7 @@ import boto3
 import socket
 import datetime
 import re
-
+import csv
 print('Loading function')
 
 s3 = boto3.client('s3')
@@ -22,13 +22,14 @@ lambda_token = "0ae0162e-855a-4b54-9ae3-bd103006bfc0"
 
 username = "YOUR_USERNAME"
 
+AWS_ELB_FORMAT = True
 
 
 def lambda_handler(event, context):
-    HOST = 'data.logentries.com'
-    PORT = 80
+    host = 'data.logentries.com'
+    port = 80
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
+    s.connect((host, port))
     token1 = validate_uuid4(log_token)
     token2 = validate_uuid4(debug_token)
     token3 = validate_uuid4(lambda_token)
@@ -42,7 +43,8 @@ def lambda_handler(event, context):
 
     if token1 is False:
         for token in tokens:
-            s.sendall('%s %s\n' % (token, "{}: log token not present for username={}".format(str(datetime.datetime.utcnow()), username)))
+            s.sendall('%s %s\n' % (token, "{}: log token not present for username={}"
+                                   .format(str(datetime.datetime.utcnow()), username)))
         raise SystemExit
     else:
         # Get the object from the event and show its content type
@@ -52,19 +54,48 @@ def lambda_handler(event, context):
             response = s3.get_object(Bucket=bucket, Key=key)
             body = response['Body']
             data = body.read()
+            if AWS_ELB_FORMAT is True:
+                # timestamp elb client:port backend:port request_processing_time backend_processing_time
+                # response_processing_time elb_status_code backend_status_code received_bytes sent_bytes
+                # "request" "user_agent" ssl_cipher ssl_protocol
+                rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
+            else:
+                pass
             for token in tokens:
-                s.sendall('%s %s\n' % (token, "username={} downloaded file={} from bucket={}.".format(username, key, bucket)))
+                s.sendall('%s %s\n' % (token, "username={} downloaded file={} from bucket={}."
+                                       .format(username, key, bucket)))
             lines = data.split("\n")
             for token in tokens:
-                s.sendall('%s %s\n' % (token, "Beginning to send lines={} start_time={}.".format(str(len(lines)), str(datetime.datetime.utcnow()))))
-            for line in lines:
-                s.sendall('%s %s\n' % log_token, line)
+                s.sendall('%s %s\n' % (token, "Beginning to send lines={} start_time={}."
+                                       .format(str(len(lines)), str(datetime.datetime.utcnow()))))
+            if AWS_ELB_FORMAT is True:
+                for line in rows:
+                    request = line[11].split(' ')
+                    idx = request[1].find('/', 9)
+                    url = request[1][idx:]
+                    parsed = {
+                        'ip': line[2].split(':')[0],
+                        'method': request[0],
+                        'url': url,
+                        'user_agent': line[12]
+                    }
+                    msg = "\"{0}\" ip=\"{ip}\" request_time=\"{5}\" elb_status=\"{7}\" backend_status=\"{8}\"" \
+                          " bytes_received=\"{9}\" bytes_sent=\"{10}\" method=\"{method}\" url=\"{url}\"" \
+                          " user_agent=\"{user_agent}\"\n"\
+                        .format(*line, **parsed)
+                    s.sendall(log_token + msg)
+            else:
+                for line in lines:
+                    s.sendall('%s %s\n' % log_token, line)
             for token in tokens:
-                s.sendall('%s %s\n' % (token, "username={} finished sending log data end_time={}".format(username, str(datetime.datetime.utcnow()))))
+                s.sendall('%s %s\n' % (token, "username={} finished sending log data end_time={}"
+                                       .format(username, str(datetime.datetime.utcnow()))))
         except Exception as e:
             for token in tokens:
                 print e
-                s.sendall('%s %s\n' % (token, 'Error getting username={} file={} from bucket={}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket)))
+                s.sendall('%s %s\n' % (token, 'Error getting username={} file={} from bucket={}. Make sure '
+                                              'they exist and your bucket is in the same region as this function.'
+                                       .format(username, key, bucket)))
         finally:
             s.close()
 
