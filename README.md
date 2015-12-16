@@ -4,7 +4,6 @@ Follow the instructions below to send logs stored on AWS S3 to Logentries.
 ###### Example use cases:
 * Forwarding AWS ELB logs
   * (make sure to set ELB to write logs every 5 minutes)
-  * By default, ```AWS_ELB_FORMAT = True``` - set this to false if your logs are not for Amazon Elastic Load Balancer
   * When forwarding ELB logs, the script will format the log lines according to Logentries KVP spec to make them easier to analyze
 * Forwarding OpenDNS logs
 
@@ -40,7 +39,6 @@ Follow the instructions below to send logs stored on AWS S3 to Logentries.
    * Copy the contents of ```le_lambda.py```
    * Replace **all** code in the editor window
    * Replace values of ```log_token``` and ```debug_token``` with tokens obtained earlier.
-   * By default, ```AWS_ELB_FORMAT = True``` - set this to false if your logs are not for Amazon Elastic Load Balancer
 
    ![Create Function](https://raw.githubusercontent.com/omgapuppy/le_lambda/master/doc/step5.png)
 
