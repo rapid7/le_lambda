@@ -22,8 +22,6 @@ lambda_token = "0ae0162e-855a-4b54-9ae3-bd103006bfc0"
 
 username = "YOUR_USERNAME"
 
-AWS_ELB_FORMAT = True
-
 
 def lambda_handler(event, context):
     host = 'data.logentries.com'
@@ -54,13 +52,6 @@ def lambda_handler(event, context):
             response = s3.get_object(Bucket=bucket, Key=key)
             body = response['Body']
             data = body.read()
-            if AWS_ELB_FORMAT is True:
-                # timestamp elb client:port backend:port request_processing_time backend_processing_time
-                # response_processing_time elb_status_code backend_status_code received_bytes sent_bytes
-                # "request" "user_agent" ssl_cipher ssl_protocol
-                rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
-            else:
-                pass
             for token in tokens:
                 s.sendall('%s %s\n' % (token, "username={} downloaded file={} from bucket={}."
                                        .format(username, key, bucket)))
@@ -68,7 +59,11 @@ def lambda_handler(event, context):
             for token in tokens:
                 s.sendall('%s %s\n' % (token, "Beginning to send lines={} start_time={}."
                                        .format(str(len(lines)), str(datetime.datetime.utcnow()))))
-            if AWS_ELB_FORMAT is True:
+            if validate_elb_log(str(key)) is True:
+                # timestamp elb client:port backend:port request_processing_time backend_processing_time
+                # response_processing_time elb_status_code backend_status_code received_bytes sent_bytes
+                # "request" "user_agent" ssl_cipher ssl_protocol
+                rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
                 for line in rows:
                     request = line[11].split(' ')
                     idx = request[1].find('/', 9)
@@ -86,7 +81,7 @@ def lambda_handler(event, context):
                     s.sendall(log_token + msg)
             else:
                 for line in lines:
-                    s.sendall('%s %s\n' % log_token, line)
+                    s.sendall('%s %s\n' % (log_token, line))
             for token in tokens:
                 s.sendall('%s %s\n' % (token, "username={} finished sending log data end_time={}"
                                        .format(username, str(datetime.datetime.utcnow()))))
@@ -103,4 +98,10 @@ def lambda_handler(event, context):
 def validate_uuid4(uuid):
     regex = re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
     match = regex.match(uuid)
+    return bool(match)
+
+
+def validate_elb_log(key):
+    regex = re.compile('^\d+_\w+_\w{2}-\w{4,10}-[12]_\w+_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log$', re.I)
+    match = regex.match(key)
     return bool(match)
