@@ -28,18 +28,15 @@ def lambda_handler(event, context):
     port = 80
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
-    token1 = validate_uuid4(log_token)
-    token2 = validate_uuid4(debug_token)
-    token3 = validate_uuid4(lambda_token)
     tokens = []
-    if token2 is True:
+    if validate_uuid4(debug_token) is True:
         tokens.append(debug_token)
-    if token3 is True:
+    if validate_uuid4(lambda_token) is True:
         tokens.append(lambda_token)
     else:
         pass
 
-    if token1 is False:
+    if validate_uuid4(log_token) is False:
         for token in tokens:
             s.sendall('%s %s\n' % (token, "{}: log token not present for username={}"
                                    .format(str(datetime.datetime.utcnow()), username)))
