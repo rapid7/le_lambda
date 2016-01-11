@@ -99,6 +99,6 @@ def validate_uuid4(uuid):
 
 
 def validate_elb_log(key):
-    regex = re.compile('^\d+_\w+_\w{2}-\w{4,10}-[12]_.*._\d{8}T\d{4}Z_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log$', re.I)
+    regex = re.compile('^\d+_\w+_\w{2}-\w{4,9}-[12]_.*._\d{8}T\d{4}Z_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log$', re.I)
     match = regex.match(key)
     return bool(match)
