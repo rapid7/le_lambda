@@ -1,8 +1,10 @@
 import boto3
 import socket
+import ssl
 import datetime
 import re
 import csv
+
 print('Loading function')
 
 s3 = boto3.client('s3')
@@ -25,18 +27,19 @@ username = "YOUR_USERNAME"
 
 def lambda_handler(event, context):
     host = 'data.logentries.com'
-    port = 80
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    port = 20000
+    s_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s = ssl.wrap_socket(s_, ca_certs='le_certs.pem', cert_reqs=ssl.CERT_REQUIRED)
     s.connect((host, port))
     tokens = []
-    if validate_uuid4(debug_token) is True:
+    if validate_uuid(debug_token) is True:
         tokens.append(debug_token)
-    if validate_uuid4(lambda_token) is True:
+    if validate_uuid(lambda_token) is True:
         tokens.append(lambda_token)
     else:
         pass
 
-    if validate_uuid4(log_token) is False:
+    if validate_uuid(log_token) is False:
         for token in tokens:
             s.sendall('%s %s\n' % (token, "{}: log token not present for username={}"
                                    .format(str(datetime.datetime.utcnow()), username)))
@@ -50,11 +53,11 @@ def lambda_handler(event, context):
             body = response['Body']
             data = body.read()
             for token in tokens:
-                s.sendall('%s %s\n' % (token, "username={} downloaded file={} from bucket={}."
+                s.sendall('%s %s\n' % (token, "username='{}' downloaded file='{}' from bucket='{}'."
                                        .format(username, key, bucket)))
             lines = data.split("\n")
             for token in tokens:
-                s.sendall('%s %s\n' % (token, "Beginning to send lines={} start_time={}."
+                s.sendall('%s %s\n' % (token, "Beginning to send lines='{}' start_time='{}'."
                                        .format(str(len(lines)), str(datetime.datetime.utcnow()))))
             if validate_elb_log(str(key)) is True:
                 # timestamp elb client:port backend:port request_processing_time backend_processing_time
@@ -80,21 +83,21 @@ def lambda_handler(event, context):
                 for line in lines:
                     s.sendall('%s %s\n' % (log_token, line))
             for token in tokens:
-                s.sendall('%s %s\n' % (token, "username={} finished sending log data end_time={}"
+                s.sendall('%s %s\n' % (token, "username='{}' finished sending log data end_time='{}'"
                                        .format(username, str(datetime.datetime.utcnow()))))
         except Exception as e:
             for token in tokens:
                 print e
-                s.sendall('%s %s\n' % (token, 'Error getting username={} file={} from bucket={}. Make sure '
-                                              'they exist and your bucket is in the same region as this function.'
+                s.sendall('%s %s\n' % (token, "Error getting username='{}' file='{}' from bucket='{}'. Make sure "
+                                              "they exist and your bucket is in the same region as this function."
                                        .format(username, key, bucket)))
         finally:
             s.close()
 
 
-def validate_uuid4(uuid):
+def validate_uuid(uuid_string):
     regex = re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
-    match = regex.match(uuid)
+    match = regex.match(uuid_string)
     return bool(match)
 
 
