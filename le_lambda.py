@@ -200,8 +200,6 @@ if __name__ == "__main__":
     # with LogentriesLogger(log_token, debug_token, lambda_token) as logger
 
     with ConsoleLogger() as logger:
-
-
         # You can test the output by calling a local ELB log file ...
         data = open('test-data.log').read().splitlines()
 
