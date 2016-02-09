@@ -35,9 +35,9 @@ Follow the instructions below to send logs stored on AWS S3 to Logentries.
    ![Create Function](https://raw.githubusercontent.com/logentries/le_lambda/master/doc/step4.png)
 
 5. Edit code:
-   * Edit the contents of ```le_lambda.py```
+   * Edit the contents of ```le_config.py```
    * Replace values of ```log_token``` and ```debug_token``` with tokens obtained earlier.
-   * Create a .ZIP file, containing the updated ```le_lambda.py``` and ```le_certs.pem```
+   * Create a .ZIP file, containing the updated ```le_config.py```, ```le_lambda.py``` and ```le_certs.pem```
    * Choose "Upload a .ZIP file" in AWS Lambda and upload the archive created in previous step
 
    ![Create Function](https://raw.githubusercontent.com/logentries/le_lambda/master/doc/step5.png)
