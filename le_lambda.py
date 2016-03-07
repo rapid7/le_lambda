@@ -89,5 +89,5 @@ def validate_uuid(uuid_string):
 
 def validate_elb_log(key):
     regex = re.compile('\d+_\w+_\w{2}-\w{4,9}-[12]_.*._\d{8}T\d{4}Z_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log$', re.I)
-    match = regex.match(key)
+    match = regex.search(key)
     return bool(match)
