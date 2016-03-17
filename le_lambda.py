@@ -4,6 +4,7 @@ import ssl
 import datetime
 import re
 import csv
+import zlib
 from le_config import *
 
 print('Loading function')
@@ -38,6 +39,9 @@ def lambda_handler(event, context):
             response = s3.get_object(Bucket=bucket, Key=key)
             body = response['Body']
             data = body.read()
+            # If the name has a .gz extension, then decompress the data
+            if key[-3:] == '.gz':
+                data = zlib.decompress(data, 16+zlib.MAX_WBITS)
             for token in tokens:
                 s.sendall('%s %s\n' % (token, "username='{}' downloaded file='{}' from bucket='{}'."
                                        .format(username, key, bucket)))
