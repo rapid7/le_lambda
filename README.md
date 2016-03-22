@@ -2,9 +2,9 @@
 Follow the instructions below to send logs stored on AWS S3 to Logentries.
 
 ###### Example use cases:
-* Forwarding AWS ELB logs
-  * (make sure to set ELB to write logs every 5 minutes)
-  * When forwarding ELB logs, the script will format the log lines according to Logentries KVP spec to make them easier to analyze
+* Forwarding AWS ELB and CloudFront logs
+  * (make sure to set ELB/CloudFront to write logs every 5 minutes)
+  * When forwarding these logs, the script will format the log lines according to Logentries KVP spec to make them easier to analyze
 * Forwarding OpenDNS logs
 
 ## Obtain log token(s)
