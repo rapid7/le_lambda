@@ -69,6 +69,28 @@ def lambda_handler(event, context):
                           " user_agent=\"{user_agent}\"\n"\
                         .format(*line, **parsed)
                     s.sendall(log_token + msg)
+            elif validate_cf_log(str(key)) is True:
+                # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
+                # cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query
+                # cs(Cookie) x-edge-result-type x-edge-request-id x-host-header
+                # cs-protocol cs-bytes time-taken x-forwarded-for ssl-protocol
+                # ssl-cipher x-edge-response-result-type
+                rows = csv.reader(data.splitlines(), delimiter='\t', quotechar='"')
+                for line in rows:
+                    # Skip headers and lines with insufficient values
+                    if len(line) != 23:
+                        continue
+                    msg = "\"{0}T{1}Z\" x_edge_location=\"{2}\"" \
+                          " sc_bytes=\"{3}\" c_ip=\"{4}\" cs_method=\"{5}\"" \
+                          " cs_host=\"{6}\" cs_uri_stem=\"{7}\" sc_status=\"{8}\"" \
+                          " cs_referer=\"{9}\" cs_user_agent=\"{10}\" cs_uri_query=\"{11}\"" \
+                          " cs_cookie=\"{12}\" x_edge_result_type=\"{13}\"" \
+                          " x_edge_request_id=\"{14}\" x_host_header=\"{15}\"" \
+                          " cs_protocol=\"{16}\" cs_bytes=\"{17}\" time_taken=\"{18}\"" \
+                          " x_forwarded_for=\"{19}\" ssl_protocol=\"{20}\"" \
+                          " ssl_cipher=\"{21}\" x_edge_response_result_type=\"{22}\"\n" \
+                        .format(*line)
+                    s.sendall(log_token + msg)
             else:
                 for line in lines:
                     s.sendall('%s %s\n' % (log_token, line))
@@ -93,5 +115,11 @@ def validate_uuid(uuid_string):
 
 def validate_elb_log(key):
     regex = re.compile('\d+_\w+_\w{2}-\w{4,9}-[12]_.*._\d{8}T\d{4}Z_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log$', re.I)
+    match = regex.search(key)
+    return bool(match)
+
+
+def validate_cf_log(key):
+    regex = re.compile('\w+\.\d{4}-\d{2}-\d{2}-\d{2}\.\w+\.gz$', re.I)
     match = regex.search(key)
     return bool(match)
