@@ -5,6 +5,7 @@ import datetime
 import re
 import csv
 import zlib
+import json
 from le_config import *
 
 print('Loading function')
@@ -91,6 +92,10 @@ def lambda_handler(event, context):
                           " ssl_cipher=\"{21}\" x_edge_response_result_type=\"{22}\"\n" \
                         .format(*line)
                     s.sendall(log_token + msg)
+            elif validate_ct_log(str(key)) is True:
+                cloud_trail = json.loads(data)
+                for event in cloud_trail['Records']:
+                    s.sendall('%s %s\n' % (log_token, json.dumps(event)))
             else:
                 for line in lines:
                     s.sendall('%s %s\n' % (log_token, line))
@@ -121,5 +126,11 @@ def validate_elb_log(key):
 
 def validate_cf_log(key):
     regex = re.compile('\w+\.\d{4}-\d{2}-\d{2}-\d{2}\.\w+\.gz$', re.I)
+    match = regex.search(key)
+    return bool(match)
+
+
+def validate_ct_log(key):
+    regex = re.compile('\d+_CloudTrail_\w{2}-\w{4,9}-[12]_\d{8}T\d{4}Z.+.json.gz$', re.I)
     match = regex.search(key)
     return bool(match)
