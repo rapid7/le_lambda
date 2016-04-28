@@ -3,6 +3,7 @@ import socket
 import ssl
 import datetime
 import re
+import urllib
 import csv
 import zlib
 import json
@@ -35,7 +36,7 @@ def lambda_handler(event, context):
     else:
         # Get the object from the event and show its content type
         bucket = event['Records'][0]['s3']['bucket']['name']
-        key = event['Records'][0]['s3']['object']['key']
+        key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key']).decode('utf8')
         try:
             response = s3.get_object(Bucket=bucket, Key=key)
             body = response['Body']
