@@ -3,6 +3,7 @@ import socket
 import ssl
 import datetime
 import re
+import urllib
 import csv
 import zlib
 import json
@@ -35,7 +36,7 @@ def lambda_handler(event, context):
     else:
         # Get the object from the event and show its content type
         bucket = event['Records'][0]['s3']['bucket']['name']
-        key = event['Records'][0]['s3']['object']['key']
+        key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key']).decode('utf8')
         try:
             response = s3.get_object(Bucket=bucket, Key=key)
             body = response['Body']
@@ -60,16 +61,25 @@ def lambda_handler(event, context):
                     idx = request[1].find('/', 9)
                     url = request[1][idx:]
                     parsed = {
-                        'ip': line[2].split(':')[0],
+                        'timestamp': line[0],
+                        'elb_name': line[1],
+                        'client_ip': line[2].split(':')[0],
+                        'backend_ip': line[3].split(':')[0],
+                        'request_processing_time': line[4],
+                        'backend_processing_time': line[5],
+                        'response_processing_time' line[6],
+                        'elb_status_code': line[7],
+                        'backend_status_code': line[8],
+                        'received_bytes': line[9],
+                        'sent_bytes': line[10],
                         'method': request[0],
                         'url': url,
-                        'user_agent': line[12]
+                        'user_agent': line[12],
+                        'ssl_cipher': line[13],
+                        'ssl_protocol' line[14]
                     }
-                    msg = "\"{0}\" ip=\"{ip}\" request_time=\"{5}\" elb_status=\"{7}\" backend_status=\"{8}\"" \
-                          " bytes_received=\"{9}\" bytes_sent=\"{10}\" method=\"{method}\" url=\"{url}\"" \
-                          " user_agent=\"{user_agent}\"\n"\
-                        .format(*line, **parsed)
-                    s.sendall(log_token + msg)
+                    msg = json.dumps(parsed)
+                    s.sendall(log_token + msg + "\n")
             elif validate_cf_log(str(key)) is True:
                 # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
                 # cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query
