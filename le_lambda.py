@@ -67,7 +67,7 @@ def lambda_handler(event, context):
                         'backend_ip': line[3].split(':')[0],
                         'request_processing_time': line[4],
                         'backend_processing_time': line[5],
-                        'response_processing_time' line[6],
+                        'response_processing_time': line[6],
                         'elb_status_code': line[7],
                         'backend_status_code': line[8],
                         'received_bytes': line[9],
