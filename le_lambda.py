@@ -76,7 +76,7 @@ def lambda_handler(event, context):
                         'url': url,
                         'user_agent': line[12],
                         'ssl_cipher': line[13],
-                        'ssl_protocol' line[14]
+                        'ssl_protocol': line[14]
                     }
                     msg = json.dumps(parsed)
                     s.sendall(log_token + msg + "\n")
