@@ -1,7 +1,7 @@
 # le_lambda
 Follow the instructions below to send logs stored on AWS S3 to Logentries.
 
-All source code can be found on the [le_lambda Github page](https://github.com/logentries/le_lambda).
+All source code and dependencies can be found on the [le_lambda Github page](https://github.com/logentries/le_lambda).
 
 ###### Example use cases:
 * Forwarding AWS ELB and CloudFront logs
@@ -34,8 +34,8 @@ All source code can be found on the [le_lambda Github page](https://github.com/l
 5. Edit code:
    * Edit the contents of ```le_config.py```
    * Replace values of ```log_token``` and ```debug_token``` with tokens obtained earlier.
-   * Create a .ZIP file, containing the updated ```le_config.py```, ```le_lambda.py``` and ```le_certs.pem```
-     * Make sure the files are in the root of the ZIP archive, and **NOT** in a folder
+   * Create a .ZIP file, containing the updated ```le_config.py```, ```le_lambda.py``` and the folder ```certifi```
+     * Make sure the files and ```certifi``` folder are in the **root** of the ZIP archive
    * Choose "Upload a .ZIP file" in "Code entry type" dropdown and upload the archive created in previous step
 
 6. Lambda function handler and role

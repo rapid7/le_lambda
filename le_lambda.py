@@ -7,6 +7,7 @@ import urllib
 import csv
 import zlib
 import json
+import certifi
 from le_config import *
 
 print('Loading function')
@@ -16,9 +17,23 @@ s3 = boto3.client('s3')
 
 def lambda_handler(event, context):
     host = 'data.logentries.com'
-    port = 20000
+    port = 443
     s_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s = ssl.wrap_socket(s_, ca_certs='le_certs.pem', cert_reqs=ssl.CERT_REQUIRED)
+    s = ssl.wrap_socket(
+                sock=s_,
+                keyfile=None,
+                certfile=None,
+                server_side=False,
+                cert_reqs=ssl.CERT_REQUIRED,
+                ssl_version=getattr(
+                    ssl,
+                    'PROTOCOL_TLSv1_2',
+                    ssl.PROTOCOL_TLSv1
+                ),
+                ca_certs=certifi.where(),
+                do_handshake_on_connect=True,
+                suppress_ragged_eofs=True,
+            )
     s.connect((host, port))
     tokens = []
     if validate_uuid(debug_token) is True:
