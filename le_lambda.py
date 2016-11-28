@@ -104,7 +104,7 @@ def lambda_handler(event, context):
                 rows = csv.reader(data.splitlines(), delimiter='\t', quotechar='"')
                 for line in rows:
                     # Skip headers and lines with insufficient values
-                    if len(line) != 23:
+                    if len(line) < 23:
                         continue
                     msg = "\"{0}T{1}Z\" x_edge_location=\"{2}\"" \
                           " sc_bytes=\"{3}\" c_ip=\"{4}\" cs_method=\"{5}\"" \
