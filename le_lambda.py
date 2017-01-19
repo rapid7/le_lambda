@@ -95,6 +95,37 @@ def lambda_handler(event, context):
                     }
                     msg = json.dumps(parsed)
                     s.sendall(log_token + msg + "\n")
+            elif validate_alb_log(str(key)) is True:
+                rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
+                for line in rows:
+                    request = line[12].split(' ')
+                    url = request[1]
+                    parsed = {
+                        'type': line[0],
+                        'timestamp': line[1],
+                        'elb_id': line[2],
+                        'client_ip': line[3].split(':')[0],
+                        'client_port': line[3].split(':')[1],
+                        'target_ip': line[4].split(':')[0],
+                        'target_port': line[4].split(':')[1],
+                        'request_processing_time': line[5],
+                        'target_processing_time': line[6],
+                        'response_processing_time': line[7],
+                        'elb_status_code': line[8],
+                        'target_status_code': line[9],
+                        'received_bytes': line[10],
+                        'sent_bytes': line[11],
+                        'method': request[0],
+                        'url': url,
+                        'http_version' :request[2],
+                        'user_agent': line[13],
+                        'ssl_cipher': line[14],
+                        'ssl_protocol': line[15],
+                        'target_group_arn': line[16],
+                        'trace_id': line[17]
+                    }
+                    msg = json.dumps(parsed)
+                    s.sendall(log_token + msg + "\n")
             elif validate_cf_log(str(key)) is True:
                 # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
                 # cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query
@@ -145,6 +176,12 @@ def validate_uuid(uuid_string):
 
 def validate_elb_log(key):
     regex = re.compile('\d+_\w+_\w{2}-\w{4,9}-[12]_.*._\d{8}T\d{4}Z_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log$', re.I)
+    match = regex.search(key)
+    return bool(match)
+
+
+def validate_alb_log(key):
+    regex = re.compile('\d+_\w+_\w{2}-\w{4,9}-[12]_.*._\d{8}T\d{4}Z_\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}_.*.log.gz$', re.I)
     match = regex.search(key)
     return bool(match)
 
