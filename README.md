@@ -27,7 +27,7 @@ aws lambda create-function \
     --function-name S3ToLE \
     --zip-file fileb://path/le_lambda.zip \
     --role role-arn \
-    --environment Variables="{r7_region=eu,log_token=token-uuid}" \
+    --environment Variables="{region=eu,token=token-uuid}" \
     --handler le_lambda.lambda_handler \
     --runtime python2.7 \
     --timeout 300 \
@@ -92,8 +92,8 @@ aws lambda create-event-source-mapping \
 
    | Key       | Value      |
    |-----------|------------|
-   | r7_region | eu         |
-   | log_token | token uuid |
+   | region    | eu         |
+   | token     | token uuid |
 
 7. Lambda function handler and role
    * Change the "Handler" value to ```le_lambda.lambda_handler```
