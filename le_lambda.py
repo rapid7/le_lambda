@@ -146,9 +146,7 @@ def lambda_handler(event, context):
                     send_to_r7(line, sock, TOKEN)
                 logger.info('Finished sending file={} to R7'.format(key))
         except Exception as e:
-            logger.error('Error getting file={} Check permissions and verify this function '
-                         'resides in the same region as the S3 bucket={}'.format(key, bucket))
-            logger.error(e)
+            logger.error('Exception: {}'.format(e))
         finally:
             sock.close()
             logger.info('Function execution finished.')
