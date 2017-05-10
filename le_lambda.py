@@ -75,7 +75,7 @@ def lambda_handler(event, context):
                         'ssl_protocol': line[14]
                     }
                     msg = json.dumps(parsed)
-                    send_to_r7(msg, sock, TOKEN)
+                    sock.sendall('{} {}\n'.format(TOKEN, msg))
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_alb_log(str(key)) is True:
                 logger.info('File={} is AWS ALB log format. Parsing and sending to R7'.format(key))
@@ -108,7 +108,7 @@ def lambda_handler(event, context):
                         'trace_id': line[17]
                     }
                     msg = json.dumps(parsed)
-                    send_to_r7(msg, sock, TOKEN)
+                    sock.sendall('{} {}\n'.format(TOKEN, msg))
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_cf_log(str(key)) is True:
                 # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
@@ -132,18 +132,18 @@ def lambda_handler(event, context):
                           " x_forwarded_for=\"{19}\" ssl_protocol=\"{20}\"" \
                           " ssl_cipher=\"{21}\" x_edge_response_result_type=\"{22}\"\n" \
                         .format(*line)
-                    send_to_r7(msg, sock, TOKEN)
+                    sock.sendall('{} {}\n'.format(TOKEN, msg))
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_ct_log(str(key)) is True:
                 logger.info('File={} is AWS CloudTrail log format. Parsing and sending to R7'.format(key))
                 cloud_trail = json.loads(data)
                 for event in cloud_trail['Records']:
-                    send_to_r7(json.dumps(event), sock, TOKEN)
+                    sock.sendall('{} {}\n'.format(TOKEN, json.dumps(event)))
                 logger.info('Finished sending file={} to R7'.format(key))
             else:
                 logger.info('File={} is unrecognized log format. Sending raw lines to R7'.format(key))
                 for line in lines:
-                    send_to_r7(line, sock, TOKEN)
+                    sock.sendall('{} {}\n'.format(TOKEN, line))
                 logger.info('Finished sending file={} to R7'.format(key))
         except Exception as e:
             logger.error('Exception: {}'.format(e))
@@ -176,10 +176,6 @@ def create_socket():
         return s
     except socket.error, exc:
         logger.error('Exception socket.error : {}'.format(exc))
-
-
-def send_to_r7(line, r7_socket, token):
-    r7_socket.sendall('{} {}\n'.format(token, line))
 
 
 def validate_uuid(uuid_string):
