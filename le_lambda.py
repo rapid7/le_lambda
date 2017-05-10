@@ -28,7 +28,7 @@ TOKEN = os.environ.get('token')
 def lambda_handler(event, context):
     sock = create_socket()
 
-    if validate_uuid(TOKEN) is False:
+    if not validate_uuid(TOKEN):
         logger.critical('{} is not a valid token. Exiting.'.format(TOKEN))
         raise SystemExit
     else:
