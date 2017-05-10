@@ -19,17 +19,17 @@ logger.info('Loading function...')
 
 s3 = boto3.client('s3')
 
-R7_REGION = os.environ.get('r7_region')
-ENDPOINT = 'data.{}.logentries.com'.format(R7_REGION)
+REGION = os.environ.get('region')
+ENDPOINT = 'data.{}.logentries.com'.format(REGION)
 PORT = 20000
-LOG_TOKEN = os.environ.get('log_token')
+TOKEN = os.environ.get('token')
 
 
 def lambda_handler(event, context):
     sock = create_socket()
 
-    if validate_uuid(LOG_TOKEN) is False:
-        logger.critical('{} is not a valid token. Exiting.'.format(LOG_TOKEN))
+    if validate_uuid(TOKEN) is False:
+        logger.critical('{} is not a valid token. Exiting.'.format(TOKEN))
         raise SystemExit
     else:
         # Get the object from the event and show its content type
@@ -75,7 +75,7 @@ def lambda_handler(event, context):
                         'ssl_protocol': line[14]
                     }
                     msg = json.dumps(parsed)
-                    send_to_r7(msg, sock, LOG_TOKEN)
+                    send_to_r7(msg, sock, TOKEN)
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_alb_log(str(key)) is True:
                 logger.info('File={} is AWS ALB log format. Parsing and sending to R7'.format(key))
@@ -108,7 +108,7 @@ def lambda_handler(event, context):
                         'trace_id': line[17]
                     }
                     msg = json.dumps(parsed)
-                    send_to_r7(msg, sock, LOG_TOKEN)
+                    send_to_r7(msg, sock, TOKEN)
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_cf_log(str(key)) is True:
                 # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
@@ -132,18 +132,18 @@ def lambda_handler(event, context):
                           " x_forwarded_for=\"{19}\" ssl_protocol=\"{20}\"" \
                           " ssl_cipher=\"{21}\" x_edge_response_result_type=\"{22}\"\n" \
                         .format(*line)
-                    send_to_r7(msg, sock, LOG_TOKEN)
+                    send_to_r7(msg, sock, TOKEN)
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_ct_log(str(key)) is True:
                 logger.info('File={} is AWS CloudTrail log format. Parsing and sending to R7'.format(key))
                 cloud_trail = json.loads(data)
                 for event in cloud_trail['Records']:
-                    send_to_r7(json.dumps(event), sock, LOG_TOKEN)
+                    send_to_r7(json.dumps(event), sock, TOKEN)
                 logger.info('Finished sending file={} to R7'.format(key))
             else:
                 logger.info('File={} is unrecognized log format. Sending raw lines to R7'.format(key))
                 for line in lines:
-                    send_to_r7(line, sock, LOG_TOKEN)
+                    send_to_r7(line, sock, TOKEN)
                 logger.info('Finished sending file={} to R7'.format(key))
         except Exception as e:
             logger.error('Error getting file={} Check permissions and verify this function '
