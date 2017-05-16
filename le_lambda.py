@@ -20,7 +20,7 @@ logger.info('Loading function...')
 s3 = boto3.client('s3')
 
 REGION = os.environ.get('region')
-ENDPOINT = 'data.{}.logentries.com'.format(REGION)
+ENDPOINT = '{}.data.logs.insight.rapid7.com'.format(REGION)
 PORT = 20000
 TOKEN = os.environ.get('token')
 
