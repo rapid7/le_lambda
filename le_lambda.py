@@ -1,52 +1,35 @@
+import logging
 import boto3
 import socket
 import ssl
-import datetime
 import re
 import urllib
 import csv
 import zlib
 import json
 import certifi
-from le_config import *
+import os
+from uuid import UUID
 
-print('Loading function')
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+logger.info('Loading function...')
 
 s3 = boto3.client('s3')
 
+REGION = os.environ.get('region')
+ENDPOINT = '{}.data.logs.insight.rapid7.com'.format(REGION)
+PORT = 20000
+TOKEN = os.environ.get('token')
+
 
 def lambda_handler(event, context):
-    host = 'data.logentries.com'
-    port = 443
-    s_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s = ssl.wrap_socket(
-                sock=s_,
-                keyfile=None,
-                certfile=None,
-                server_side=False,
-                cert_reqs=ssl.CERT_REQUIRED,
-                ssl_version=getattr(
-                    ssl,
-                    'PROTOCOL_TLSv1_2',
-                    ssl.PROTOCOL_TLSv1
-                ),
-                ca_certs=certifi.where(),
-                do_handshake_on_connect=True,
-                suppress_ragged_eofs=True,
-            )
-    s.connect((host, port))
-    tokens = []
-    if validate_uuid(debug_token) is True:
-        tokens.append(debug_token)
-    if validate_uuid(lambda_token) is True:
-        tokens.append(lambda_token)
-    else:
-        pass
+    sock = create_socket()
 
-    if validate_uuid(log_token) is False:
-        for token in tokens:
-            s.sendall('%s %s\n' % (token, "{}: log token not present for username={}"
-                                   .format(str(datetime.datetime.utcnow()), username)))
+    if not validate_uuid(TOKEN):
+        logger.critical('{} is not a valid token. Exiting.'.format(TOKEN))
         raise SystemExit
     else:
         # Get the object from the event and show its content type
@@ -54,22 +37,20 @@ def lambda_handler(event, context):
         key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key']).decode('utf8')
         try:
             response = s3.get_object(Bucket=bucket, Key=key)
+            logger.info('Fetched file {} from S3 bucket {}'.format(key, bucket))
             body = response['Body']
             data = body.read()
             # If the name has a .gz extension, then decompress the data
             if key[-3:] == '.gz':
+                logger.info('Decompressing {}'.format(key))
                 data = zlib.decompress(data, 16+zlib.MAX_WBITS)
-            for token in tokens:
-                s.sendall('%s %s\n' % (token, "username='{}' downloaded file='{}' from bucket='{}'."
-                                       .format(username, key, bucket)))
             lines = data.split("\n")
-            for token in tokens:
-                s.sendall('%s %s\n' % (token, "Beginning to send lines='{}' start_time='{}'."
-                                       .format(str(len(lines)), str(datetime.datetime.utcnow()))))
+
             if validate_elb_log(str(key)) is True:
                 # timestamp elb client:port backend:port request_processing_time backend_processing_time
                 # response_processing_time elb_status_code backend_status_code received_bytes sent_bytes
                 # "request" "user_agent" ssl_cipher ssl_protocol
+                logger.info('File={} is AWS ELB log format. Parsing and sending to R7'.format(key))
                 rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
                 for line in rows:
                     request = line[11].split(' ')
@@ -94,8 +75,10 @@ def lambda_handler(event, context):
                         'ssl_protocol': line[14]
                     }
                     msg = json.dumps(parsed)
-                    s.sendall(log_token + msg + "\n")
+                    sock.sendall('{} {}\n'.format(TOKEN, msg))
+                logger.info('Finished sending file={} to R7'.format(key))
             elif validate_alb_log(str(key)) is True:
+                logger.info('File={} is AWS ALB log format. Parsing and sending to R7'.format(key))
                 rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
                 for line in rows:
                     request = line[12].split(' ')
@@ -125,13 +108,15 @@ def lambda_handler(event, context):
                         'trace_id': line[17]
                     }
                     msg = json.dumps(parsed)
-                    s.sendall(log_token + msg + "\n")
+                    sock.sendall('{} {}\n'.format(TOKEN, msg))
+                logger.info('Finished sending file={} to R7'.format(key))
             elif validate_cf_log(str(key)) is True:
                 # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
                 # cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query
                 # cs(Cookie) x-edge-result-type x-edge-request-id x-host-header
                 # cs-protocol cs-bytes time-taken x-forwarded-for ssl-protocol
                 # ssl-cipher x-edge-response-result-type
+                logger.info('File={} is AWS CloudFront log format. Parsing and sending to R7'.format(key))
                 rows = csv.reader(data.splitlines(), delimiter='\t', quotechar='"')
                 for line in rows:
                     # Skip headers and lines with insufficient values
@@ -147,31 +132,59 @@ def lambda_handler(event, context):
                           " x_forwarded_for=\"{19}\" ssl_protocol=\"{20}\"" \
                           " ssl_cipher=\"{21}\" x_edge_response_result_type=\"{22}\"\n" \
                         .format(*line)
-                    s.sendall(log_token + msg)
+                    sock.sendall('{} {}\n'.format(TOKEN, msg))
+                logger.info('Finished sending file={} to R7'.format(key))
             elif validate_ct_log(str(key)) is True:
+                logger.info('File={} is AWS CloudTrail log format. Parsing and sending to R7'.format(key))
                 cloud_trail = json.loads(data)
                 for event in cloud_trail['Records']:
-                    s.sendall('%s %s\n' % (log_token, json.dumps(event)))
+                    sock.sendall('{} {}\n'.format(TOKEN, json.dumps(event)))
+                logger.info('Finished sending file={} to R7'.format(key))
             else:
+                logger.info('File={} is unrecognized log format. Sending raw lines to R7'.format(key))
                 for line in lines:
-                    s.sendall('%s %s\n' % (log_token, line))
-            for token in tokens:
-                s.sendall('%s %s\n' % (token, "username='{}' finished sending log data end_time='{}'"
-                                       .format(username, str(datetime.datetime.utcnow()))))
+                    sock.sendall('{} {}\n'.format(TOKEN, line))
+                logger.info('Finished sending file={} to R7'.format(key))
         except Exception as e:
-            for token in tokens:
-                print e
-                s.sendall('%s %s\n' % (token, "Error getting username='{}' file='{}' from bucket='{}'. Make sure "
-                                              "they exist and your bucket is in the same region as this function."
-                                       .format(username, key, bucket)))
+            logger.error('Exception: {}'.format(e))
         finally:
-            s.close()
+            sock.close()
+            logger.info('Function execution finished.')
 
+
+def create_socket():
+    logger.info('Creating SSL socket')
+    s_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s = ssl.wrap_socket(
+        sock=s_,
+        keyfile=None,
+        certfile=None,
+        server_side=False,
+        cert_reqs=ssl.CERT_REQUIRED,
+        ssl_version=getattr(
+            ssl,
+            'PROTOCOL_TLSv1_2',
+            ssl.PROTOCOL_TLSv1
+        ),
+        ca_certs=certifi.where(),
+        do_handshake_on_connect=True,
+        suppress_ragged_eofs=True,
+    )
+    try:
+        logger.info('Connecting to {}:{}'.format(ENDPOINT, PORT))
+        s.connect((ENDPOINT, PORT))
+        return s
+    except socket.error, exc:
+        logger.error('Exception socket.error : {}'.format(exc))
+        raise SystemExit
 
 def validate_uuid(uuid_string):
-    regex = re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
-    match = regex.match(uuid_string)
-    return bool(match)
+    try:
+        val = UUID(uuid_string)
+    except Exception as uuid_exc:
+        logger.error('Can not validate token: ' + uuid_exc)
+        return False
+    return True
 
 
 def validate_elb_log(key):
