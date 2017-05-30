@@ -176,7 +176,7 @@ def create_socket():
         return s
     except socket.error, exc:
         logger.error('Exception socket.error : {}'.format(exc))
-
+        raise SystemExit
 
 def validate_uuid(uuid_string):
     try:
@@ -184,7 +184,7 @@ def validate_uuid(uuid_string):
     except Exception as uuid_exc:
         logger.error('Can not validate token: ' + uuid_exc)
         return False
-    return val.hex == uuid_string.replace('-', '')
+    return True
 
 
 def validate_elb_log(key):
