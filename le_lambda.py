@@ -93,10 +93,10 @@ def lambda_handler(event, context):
                 good_run_count = 0
                 bad_run_count = 0
                 for line in rows:
-                    request = line[12].split(' ')
-                    url = request[1]
                     total_run_count += 1
                     try:
+                        request = line[12].split(' ')
+                        url = request[1]
                         parsed = {
                             'type': line[0],
                             'timestamp': line[1],
