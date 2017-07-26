@@ -1,4 +1,7 @@
+import gzip
 import logging
+import tempfile
+
 import boto3
 import socket
 import ssl
@@ -42,9 +45,15 @@ def lambda_handler(event, context):
             data = body.read()
             # If the name has a .gz extension, then decompress the data
             if key[-3:] == '.gz':
-                logger.info('Decompressing {}'.format(key))
-                data = zlib.decompress(data, 16+zlib.MAX_WBITS)
+                with tempfile.TemporaryFile() as temporary_file:
+                    temporary_file.write(data)
+                    temporary_file.seek(0)
+
+                    with gzip.GzipFile(fileobj=temporary_file, mode="r") as gz:
+                        data = gz.read()
+
             lines = data.split("\n")
+            logger.info('Total number of lines: {}'.format(len(list(lines))))
 
             if validate_elb_log(str(key)) is True:
                 # timestamp elb client:port backend:port request_processing_time backend_processing_time
@@ -80,35 +89,48 @@ def lambda_handler(event, context):
             elif validate_alb_log(str(key)) is True:
                 logger.info('File={} is AWS ALB log format. Parsing and sending to R7'.format(key))
                 rows = csv.reader(data.splitlines(), delimiter=' ', quotechar='"')
+                total_run_count = 0
+                good_run_count = 0
+                bad_run_count = 0
                 for line in rows:
-                    request = line[12].split(' ')
-                    url = request[1]
-                    parsed = {
-                        'type': line[0],
-                        'timestamp': line[1],
-                        'elb_id': line[2],
-                        'client_ip': line[3].split(':')[0],
-                        'client_port': line[3].split(':')[1],
-                        'target_ip': line[4].split(':')[0],
-                        'target_port': line[4].split(':')[1],
-                        'request_processing_time': line[5],
-                        'target_processing_time': line[6],
-                        'response_processing_time': line[7],
-                        'elb_status_code': line[8],
-                        'target_status_code': line[9],
-                        'received_bytes': line[10],
-                        'sent_bytes': line[11],
-                        'method': request[0],
-                        'url': url,
-                        'http_version' :request[2],
-                        'user_agent': line[13],
-                        'ssl_cipher': line[14],
-                        'ssl_protocol': line[15],
-                        'target_group_arn': line[16],
-                        'trace_id': line[17]
-                    }
-                    msg = json.dumps(parsed)
-                    sock.sendall('{} {}\n'.format(TOKEN, msg))
+                    total_run_count += 1
+                    try:
+                        request = line[12].split(' ')
+                        url = request[1]
+                        parsed = {
+                            'type': line[0],
+                            'timestamp': line[1],
+                            'elb_id': line[2],
+                            'client_ip': line[3].split(':')[0],
+                            'client_port': line[3].split(':')[1],
+                            'target_ip': line[4].split(':')[0],
+                            'target_port': line[4].split(':')[1],
+                            'request_processing_time': line[5],
+                            'target_processing_time': line[6],
+                            'response_processing_time': line[7],
+                            'elb_status_code': line[8],
+                            'target_status_code': line[9],
+                            'received_bytes': line[10],
+                            'sent_bytes': line[11],
+                            'method': request[0],
+                            'url': url,
+                            'http_version' :request[2],
+                            'user_agent': line[13],
+                            'ssl_cipher': line[14],
+                            'ssl_protocol': line[15],
+                            'target_group_arn': line[16],
+                            'trace_id': line[17]
+                        }
+                        msg = json.dumps(parsed)
+                        sock.sendall('{} {}\n'.format(TOKEN, msg))
+                        good_run_count += 1
+                    except IndexError:
+                        bad_run_count += 1
+                        logger.info('[ALB logs] bad log line: {}'.format(line))
+                        pass
+                logger.info('[ALB logs] total run count: {}'.format(total_run_count))
+                logger.info('[ALB logs] processed-and-sent run count: {}'.format(good_run_count))
+                logger.info('[ALB logs] bad run count: {}'.format(bad_run_count))
                 logger.info('Finished sending file={} to R7'.format(key))
             elif validate_cf_log(str(key)) is True:
                 # date time x-edge-location sc-bytes c-ip cs-method cs(Host)
