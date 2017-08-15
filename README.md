@@ -14,57 +14,6 @@ All source code and dependencies can be found on the [le_lambda Github page](htt
 
 2. Add a new [token based log](https://logentries.com/doc/input-token/)
 
-## Deploy the script to AWS Lambda using AWS CLI
-
-1. Download the function source as zip from GitHub
-
-2. Deploy the function:
-   * Adjust the params as necessary, referring to [AWS docs](http://docs.aws.amazon.com/cli/latest/reference/lambda/create-function.html)
-
-```
-aws lambda create-function \
-    --region us-east-1 \
-    --function-name S3ToLE \
-    --zip-file fileb://path/le_lambda.zip \
-    --role role-arn \
-    --environment Variables="{region=eu,token=token-uuid}" \
-    --handler le_lambda.lambda_handler \
-    --runtime python2.7 \
-    --timeout 300 \
-    --memory-size 512 \
-    --profile default
-```
-
-3. Map the event source:
-   * Adjust the params as necessary, referring to [AWS docs](http://docs.aws.amazon.com/lambda/latest/dg/with-cloudtrail-example-configure-event-source.html)
-
-```
-aws lambda add-permission \
---function-name CloudTrailEventProcessing \
---region us-west-2 \
---statement-id Id-1 \
---action "lambda:InvokeFunction" \
---principal s3.amazonaws.com \
---source-arn arn:aws:s3:::examplebucket \
---source-account examplebucket-owner-account-id \
---profile adminuser
-```
-   * Verify function's access policy:
-```
-aws lambda get-policy \
---function-name function-name \
---profile adminuser
-```
-
-   * Create event source mapping:
-
-```
-aws lambda create-event-source-mapping \
---function-name function-name \
---event-source-arn arn:aws:s3:::examplebucket
-```
-
-
 ## Deploy the script to AWS Lambda using AWS Console
 1. Create a new Lambda function
 
