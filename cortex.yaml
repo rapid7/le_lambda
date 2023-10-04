@@ -1,0 +1,14 @@
+---
+info:
+  title: Le Lambda
+  x-cortex-git:
+    github:
+      alias: r7org
+      repository: rapid7/le_lambda
+  x-cortex-tag: le-lambda
+  x-cortex-type: service
+  x-cortex-domain-parents:
+  - tag: insightidr
+openapi: 3.0.1
+servers:
+- url: "/"
