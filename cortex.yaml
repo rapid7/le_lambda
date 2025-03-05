@@ -7,6 +7,8 @@ info:
       repository: rapid7/le_lambda
   x-cortex-tag: le-lambda
   x-cortex-type: service
+  x-cortex-groups:
+  - exposure:opensource
   x-cortex-domain-parents:
   - tag: logsearch
 openapi: 3.0.1
